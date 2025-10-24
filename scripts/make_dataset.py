@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create a holistic dataset folder for a binary audio ML dataset.
+Create a SmellySongs dataset folder for a binary audio ML dataset.
 
 What it does:
 - Scans two source folders for audio files:
@@ -11,6 +11,8 @@ What it does:
 - Produces a CSV INSIDE the dataset folder with columns: [filename, is_AI]
     where `filename` is the NEW incrementing name.
  - Optional: --convert-to-wav converts all files to .wav while copying (uses pydub)
+ - Optional: --split-seconds <float> splits each input into fixed-length chunks that
+     are included in the sequential naming and CSV (uses pydub/ffmpeg)
 
 Usage examples:
     # Use defaults for input folders and write dataset to Datasets/MLDataset
@@ -24,6 +26,9 @@ Usage examples:
 
     # Convert to WAV on the fly
     python scripts/make_dataset_dataframe.py --out-dir Datasets/MLDataset --convert-to-wav
+
+    # Split into 5-second chunks (exported in original format unless converting)
+    python scripts/make_dataset_dataframe.py --out-dir Datasets/MLDataset --split-seconds 5
 """
 from __future__ import annotations
 
@@ -63,7 +68,12 @@ essential_description = (
 
 
 def copy_files_and_build_dataframe(
-    real_dir: Path, ai_dir: Path, out_dir: Path, *, convert_to_wav: bool = False
+    real_dir: Path,
+    ai_dir: Path,
+    out_dir: Path,
+    *,
+    convert_to_wav: bool = False,
+    split_seconds: float | None = None,
 ) -> pd.DataFrame:
     """Copy audio into out_dir with incrementing names and return label DataFrame.
 
@@ -82,40 +92,67 @@ def copy_files_and_build_dataframe(
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # If converting, ensure pydub is available early
-    if convert_to_wav:
+    # If converting or splitting, ensure pydub is available early
+    if convert_to_wav or split_seconds is not None:
         try:
             from pydub import AudioSegment  # type: ignore
         except Exception as e:
             print(
-                "Error: --convert-to-wav requires the 'pydub' package.\n"
+                "Error: audio operations require the 'pydub' package.\n"
                 "Install with: pip install pydub\n"
-                "and"
-                "pip install audioop-lts\n"
                 "Note: pydub also needs ffmpeg installed on your system."
             )
             raise SystemExit(1) from e
+
+    if split_seconds is not None:
+        try:
+            split_ms = int(float(split_seconds) * 1000)
+        except Exception:
+            print("Error: --split-seconds must be a number (seconds)")
+            raise SystemExit(2)
+        if split_ms <= 0:
+            print("Error: --split-seconds must be > 0")
+            raise SystemExit(2)
 
     width = max(6, len(str(total)))  # e.g., 000001
     rows: List[dict] = []
     idx = 0
     for src, label in pairs:
         try:
-            ext = ".wav" if convert_to_wav else src.suffix
-            candidate_idx = idx + 1
-            new_name = f"{candidate_idx:0{width}d}{ext}"
-            dst = out_dir / new_name
-
-            if convert_to_wav and src.suffix != ".wav":
+            # Splitting path
+            if split_seconds is not None:
                 from pydub import AudioSegment  # type: ignore
                 audio = AudioSegment.from_file(src)
-                audio.export(dst, format="wav")
-                print("Converted:", src, "->", dst)
-            else:
-                shutil.copy2(src, dst)
+                ext = ".wav" if convert_to_wav else src.suffix
+                export_format = "wav" if convert_to_wav else (ext[1:].lower() if ext.startswith(".") else "wav")
 
-            idx += 1
-            rows.append({"filename": new_name, "is_AI": label})
+                # Iterate chunks; include final shorter tail chunk
+                for start in range(0, len(audio), split_ms):
+                    end = min(start + split_ms, len(audio))
+                    segment = audio[start:end]
+                    candidate_idx = idx + 1
+                    new_name = f"{candidate_idx:0{width}d}{ext}"
+                    dst = out_dir / new_name
+                    segment.export(dst, format=export_format)
+                    idx += 1
+                    rows.append({"filename": new_name, "is_AI": label})
+            else:
+                # No split: copy or convert
+                ext = ".wav" if convert_to_wav else src.suffix
+                candidate_idx = idx + 1
+                new_name = f"{candidate_idx:0{width}d}{ext}"
+                dst = out_dir / new_name
+
+                if convert_to_wav and src.suffix != ".wav":
+                    from pydub import AudioSegment  # type: ignore
+                    audio = AudioSegment.from_file(src)
+                    audio.export(dst, format="wav")
+                    print("Converted:", src, "->", dst)
+                else:
+                    shutil.copy2(src, dst)
+
+                idx += 1
+                rows.append({"filename": new_name, "is_AI": label})
         except Exception as e:
             print(f"Warning: failed to process {src} -> {e}")
             continue
@@ -155,6 +192,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Convert all audio to .wav while copying (requires pydub and ffmpeg)",
     )
+    parser.add_argument(
+        "--split-seconds",
+        type=float,
+        default=None,
+        help="Optionally split each file into fixed-length chunks (in seconds). Uses pydub/ffmpeg",
+    )
     # Deprecated: keep for compatibility but ignored when out-dir is used
     parser.add_argument(
         "--to-csv",
@@ -178,7 +221,11 @@ def main() -> None:
     print(f"Output dataset:  {out_dir}")
 
     df = copy_files_and_build_dataframe(
-        real_dir, ai_dir, out_dir, convert_to_wav=args.convert_to_wav
+        real_dir,
+        ai_dir,
+        out_dir,
+        convert_to_wav=args.convert_to_wav,
+        split_seconds=args.split_seconds,
     )
     print(
         f"Copied {len(df)} files (Real={ (df['is_AI']==0).sum() }, AI={ (df['is_AI']==1).sum() })"
