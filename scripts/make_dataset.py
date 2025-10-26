@@ -12,7 +12,8 @@ What it does:
     where `filename` is the NEW incrementing name.
  - Optional: --convert-to-wav converts all files to .wav while copying (uses pydub)
  - Optional: --split-seconds <float> splits each input into fixed-length chunks that
-     are included in the sequential naming and CSV (uses pydub/ffmpeg)
+     are included in the sequential naming and CSV (uses pydub/ffmpeg). Tail segments
+     shorter than the requested length are excluded.
 
 Usage examples:
     # Use defaults for input folders and write dataset to Datasets/MLDataset
@@ -27,7 +28,8 @@ Usage examples:
     # Convert to WAV on the fly
     python scripts/make_dataset_dataframe.py --out-dir Datasets/MLDataset --convert-to-wav
 
-    # Split into 5-second chunks (exported in original format unless converting)
+    # Split into 5-second chunks (exported in original format unless converting).
+    # Tail segments shorter than 5s are excluded.
     python scripts/make_dataset_dataframe.py --out-dir Datasets/MLDataset --split-seconds 5
 """
 from __future__ import annotations
@@ -126,10 +128,13 @@ def copy_files_and_build_dataframe(
                 ext = ".wav" if convert_to_wav else src.suffix
                 export_format = "wav" if convert_to_wav else (ext[1:].lower() if ext.startswith(".") else "wav")
 
-                # Iterate chunks; include final shorter tail chunk
+                # Iterate chunks; exclude tail segments shorter than split_ms
                 for start in range(0, len(audio), split_ms):
                     end = min(start + split_ms, len(audio))
                     segment = audio[start:end]
+                    if len(segment) < split_ms:
+                        # Skip segments shorter than requested length
+                        continue
                     candidate_idx = idx + 1
                     new_name = f"{candidate_idx:0{width}d}{ext}"
                     dst = out_dir / new_name
