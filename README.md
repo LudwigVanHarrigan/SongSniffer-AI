@@ -1,7 +1,7 @@
 # SongSniffer-AI
 A machine learning project for distinguishing between AI-generated and human-created music using convolutional neural networks (CNNs) trained on mel-spectrograms.
 
-This is the final project for MA416: Deep Learning at Rose-Hulman Institute of Technology.
+This was developed by Kevin Cotellesso, Alex Stedman, Reese Sieger, and Jacob Richardson for MA416: Deep Learning at Rose-Hulman Institute of Technology. 
 
 **Disclaimer: this readme was written primarily by Claude Sonnet 4, but was proofread and edited by Kevin Cotellesso.**
 
@@ -17,17 +17,16 @@ This is the final project for MA416: Deep Learning at Rose-Hulman Institute of T
 Contains various dataset versions and source data:
 - `SmellySongs9k/` - 9,000 sample dataset with proper train/test split, balancing and greyscale spectrograms.
 - `SmellySongs23K/` - DEPRECATED - 23,000 sample dataset with grayscale spectrograms.
-- `SmellySongs772/` - DEPRECATED - Smaller 772 sample dataset
+- `SmellySongs772/` - DEPRECATED - Smaller 772 sample dataset (not split into 5s chunks or spectrograms)
 - `Source_Datasets/` - Raw source datasets used to generate our AI vs Human datasets
   - `RoyaltyFree/` - Human-created music
   - `SunoCaps/` - AI-generated music
 
 ### **Final Models & Training**
-- `SimpleCNN1/` - Simple CNN implementation
+- `SimpleCNN1/` - Our first working model!!
   - `SimpleCNN1.py` - Model definition
   - `SimpleCNN_TRAIN.ipynb` - Training notebook
   - `SimpleCNN_inference.ipynb` - Inference notebook
-  - `SimpleCNN1_T1.pth` - Trained model weights
 
 ### **Development and Prototype Implementations**
 - `CNN_prototypes/` - CNN development notebooks
