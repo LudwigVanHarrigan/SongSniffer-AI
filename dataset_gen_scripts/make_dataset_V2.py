@@ -40,6 +40,12 @@ Usage examples:
             --spectrogram-resolution 256 \
             --spectrogram-colormap plasma
 
+    # Create balanced dataset (equal AI and Human counts)
+    python make_dataset_V2.py \
+            --out-dir Datasets/MLDataset \
+            --split-seconds 5 \
+            --balance
+
     # Override input folders explicitly
     python make_dataset_V2.py \
             --real Datasets/RoyaltyFree/Audio \
@@ -58,6 +64,7 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 
 import numpy as np
+from tqdm import tqdm
 
 AUDIO_EXTS = {
     ".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg", ".opus",
@@ -118,7 +125,7 @@ def generate_mel_spectrogram(audio_path: Path, output_path: Path, resolution: in
     except ImportError as e:
         print(
             "Error: Mel spectrogram generation requires additional packages.\n"
-            "Install with: pip install librosa matplotlib pillow\n"
+            "Install with: pip install librosa matplotlib pillow tqdm\n"
         )
         raise SystemExit(1) from e
     
@@ -166,6 +173,7 @@ def process_and_copy_files(
     spectrogram_resolution: int = 224,
     spectrogram_grayscale: bool = False,
     spectrogram_colormap: str = 'viridis',
+    balance: bool = False,
 ) -> Tuple[int, int, int, int]:
     """Process audio files and organize them into train/test AI/Human folder structure.
     
@@ -178,6 +186,7 @@ def process_and_copy_files(
         spectrogram_resolution: Resolution for spectrogram images
         spectrogram_grayscale: Whether to generate grayscale spectrograms
         spectrogram_colormap: Colormap for color spectrograms
+        balance: Whether to balance AI and Human segments (equal counts)
     
     Returns: (train_human_count, train_ai_count, test_human_count, test_ai_count)
     """
@@ -220,15 +229,15 @@ def process_and_copy_files(
     test_ai_dir = out_dir / "test" / "AI"
 
     # Create spectrogram directories if needed
-    spec_dirs = []
-    if generate_spectrograms:
-        train_human_spec_dir = out_dir / "train" / "Human" / "spectrograms"
-        train_ai_spec_dir = out_dir / "train" / "AI" / "spectrograms"
-        test_human_spec_dir = out_dir / "test" / "Human" / "spectrograms"
-        test_ai_spec_dir = out_dir / "test" / "AI" / "spectrograms"
-        spec_dirs = [train_human_spec_dir, train_ai_spec_dir, test_human_spec_dir, test_ai_spec_dir]
+    # spec_dirs = []
+    # if generate_spectrograms:
+    #     train_human_spec_dir = out_dir / "train" / "Human"
+    #     train_ai_spec_dir = out_dir / "train" / "AI"
+    #     test_human_spec_dir = out_dir / "test" / "Human"
+    #     test_ai_spec_dir = out_dir / "test" / "AI"
+    #     spec_dirs = [train_human_spec_dir, train_ai_spec_dir, test_human_spec_dir, test_ai_spec_dir]
 
-    for dir_path in [train_human_dir, train_ai_dir, test_human_dir, test_ai_dir] + spec_dirs:
+    for dir_path in [train_human_dir, train_ai_dir, test_human_dir, test_ai_dir]:
         dir_path.mkdir(parents=True, exist_ok=True)
 
     # Process files and keep counts
@@ -248,6 +257,31 @@ def process_and_copy_files(
         }
     } if generate_spectrograms else None
 
+    # Count potential segments if balancing is requested
+    segment_counts = [0, 0, 0, 0]  # train_human, train_ai, test_human, test_ai
+    if balance:
+        category_files = [real_train, ai_train, real_test, ai_test]
+        category_labels = ['Train Human', 'Train AI', 'Test Human', 'Test AI']
+        
+        print("Counting segments for balancing...")
+        for i, files in enumerate(category_files):
+            for src in tqdm(files, desc=f"Counting {category_labels[i]}", leave=False):
+                try:
+                    audio = AudioSegment.from_file(src)
+                    for start in range(0, len(audio), split_ms):
+                        end = min(start + split_ms, len(audio))
+                        if end - start >= split_ms:  # Only count full-length segments
+                            segment_counts[i] += 1
+                except Exception:
+                    continue
+        
+        # Calculate minimum count for balancing
+        train_min = min(segment_counts[0], segment_counts[1]) if segment_counts[0] > 0 and segment_counts[1] > 0 else max(segment_counts[0], segment_counts[1])
+        test_min = min(segment_counts[2], segment_counts[3]) if segment_counts[2] > 0 and segment_counts[3] > 0 else max(segment_counts[2], segment_counts[3])
+        target_counts = [train_min, train_min, test_min, test_min]
+        
+        print(f"Balancing enabled: Target counts - Train: {train_min} each, Test: {test_min} each")
+
     # Process each category
     category_names = ['train_human', 'train_ai', 'test_human', 'test_ai']
     categories = [
@@ -258,10 +292,18 @@ def process_and_copy_files(
     ]
 
     for files, target_dir, count_idx, category_name in categories:
-        spec_dir = None
-        if generate_spectrograms:
-            spec_dir = target_dir / "spectrograms"
+        spec_dir = target_dir
+        category_label = category_name.replace('_', ' ').title()
+        
+        # Setup progress bar for this category
+        if balance and count_idx < len(target_counts):
+            max_segments = target_counts[count_idx]
+            desc = f"Processing {category_label} (target: {max_segments})"
+        else:
+            desc = f"Processing {category_label}"
             
+        progress_bar = tqdm(total=len(files), desc=desc, leave=False)
+        
         for src in files:
             try:
                 # Load audio and split into chunks
@@ -269,6 +311,10 @@ def process_and_copy_files(
                 
                 # Process each chunk
                 for start in range(0, len(audio), split_ms):
+                    # Check if we've reached the target count for balancing
+                    if balance and counts[count_idx] >= target_counts[count_idx]:
+                        break
+                        
                     end = min(start + split_ms, len(audio))
                     segment = audio[start:end]
                     
@@ -306,10 +352,18 @@ def process_and_copy_files(
                     
                     file_counters[count_idx] += 1
                     counts[count_idx] += 1
+                
+                # Break out of file loop if we've reached target count
+                if balance and counts[count_idx] >= target_counts[count_idx]:
+                    progress_bar.update(1)
+                    break
                     
             except Exception as e:
                 print(f"Warning: failed to process {src} -> {e}")
-                continue
+                
+            progress_bar.update(1)
+            
+        progress_bar.close()
 
     # Save spectrogram metadata if generated
     if generate_spectrograms and spectrogram_metadata is not None:
@@ -383,6 +437,11 @@ def parse_args() -> argparse.Namespace:
         default="viridis",
         help="Matplotlib colormap for color spectrograms (default: viridis)",
     )
+    parser.add_argument(
+        "--balance",
+        action="store_true",
+        help="Balance dataset by ensuring equal numbers of AI and Human segments",
+    )
 
     return parser.parse_args()
 
@@ -415,6 +474,7 @@ def main() -> None:
         args.spectrogram_resolution,
         args.spectrogram_grayscale,
         args.spectrogram_colormap,
+        args.balance,
     )
     
     total_files = train_human + train_ai + test_human + test_ai
@@ -432,10 +492,10 @@ def main() -> None:
         print("  test/AI/")
         if args.generate_spectrograms:
             print("\nSpectrogram directories:")
-            print("  train/Human/spectrograms/")
-            print("  train/AI/spectrograms/")
-            print("  test/Human/spectrograms/")
-            print("  test/AI/spectrograms/")
+            print("  train/Human/")
+            print("  train/AI/")
+            print("  test/Human/")
+            print("  test/AI/")
             print("  (Each with metadata.json containing spectrogram details)")
 
 
