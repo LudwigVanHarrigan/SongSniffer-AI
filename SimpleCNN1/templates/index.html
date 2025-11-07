@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song Sniffer AI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: url('/static/sniffer.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+        h1 {
+            color: white; /* Change text color to white */
+            font-size: 3em; /* Make the title larger */
+            font-family: 'Comic Sans MS', 'Comic Sans', cursive; /* Use a funny font */
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Add shadow for better visibility */
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            border: 2px solid #007BFF; /* Add border */
+            padding: 20px; /* Add padding inside the box */
+            border-radius: 10px; /* Round the corners */
+            background-color: #f9f9f9; /* Light background color */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Add shadow */
+        }
+        input[type="file"] {
+            padding: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>Song Sniffer AI</h1>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" name="file" accept="image/*" required>
+        <button type="submit">Predict</button>
+    </form>
+    <div id="result" class="result" style="display: none;"></div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const resultDiv = document.getElementById('result');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert(`Error: ${error.error}`);
+                    return;
+                }
+
+                const data = await response.json();
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <p><strong>Filename:</strong> ${data.filename}</p>
+                    <p><strong>Prediction:</strong> ${data.prediction}</p>
+                    <p><strong>Confidence:</strong> ${(data.confidence * 100).toFixed(2)}%</p>
+                `;
+
+                const img = document.createElement('img');
+                img.src = data.prediction === 'smelly' ? '/static/smelly.jpg' : '/static/not_smelly.jpg';
+                img.alt = data.prediction === 'smelly' ? 'Smelly' : 'Not Smelly';
+                img.style.width = '300px'; // Set fixed width to double the size
+                img.style.height = '300px'; // Set fixed height to double the size
+                img.style.objectFit = 'cover'; // Crop to square
+                img.style.marginLeft = '10px'; // Add spacing
+                resultDiv.appendChild(img);
+            } catch (error) {
+                alert('An error occurred while processing the file.');
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
