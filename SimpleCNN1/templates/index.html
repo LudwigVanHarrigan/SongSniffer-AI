@@ -60,14 +60,19 @@
 <body>
     <h1>Song Sniffer AI</h1>
     <form id="uploadForm">
-        <input type="file" id="fileInput" name="file" accept="image/*" required>
+        <label for="fileInput">Upload Image or Audio File:</label>
+        <input type="file" id="fileInput" name="file" accept="image/*,audio/wav" required>
         <button type="submit">Predict</button>
-    </form>
+    </form> 
+    <audio id="audioPlayer" controls style="display: none; margin-top: 10px;"></audio>
+    <button id="playButton" style="display: none; margin-top: 10px;">Play Uploaded Audio</button>
     <div id="result" class="result" style="display: none;"></div>
 
     <script>
         const form = document.getElementById('uploadForm');
         const resultDiv = document.getElementById('result');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const playButton = document.getElementById('playButton');
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -114,6 +119,24 @@
             } catch (error) {
                 alert('An error occurred while processing the file.');
                 console.error(error);
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+
+            if (file && file.type === 'audio/wav') {
+                const objectURL = URL.createObjectURL(file);
+                audioPlayer.src = objectURL;
+                audioPlayer.style.display = 'block';
+                playButton.style.display = 'block';
+
+                playButton.addEventListener('click', () => {
+                    audioPlayer.play();
+                });
+            } else {
+                audioPlayer.style.display = 'none';
+                playButton.style.display = 'none';
             }
         });
     </script>
