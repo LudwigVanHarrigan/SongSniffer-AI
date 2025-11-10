@@ -368,7 +368,7 @@ def process_and_copy_files(
     # Save spectrogram metadata if generated
     if generate_spectrograms and spectrogram_metadata is not None:
         for category_name in category_names:
-            category_dir = out_dir / category_name.replace('_', '/') / "spectrograms"
+            category_dir = out_dir / category_name.replace('_', '/')
             if category_dir.exists():
                 metadata_path = category_dir / "metadata.json"
                 category_data = {
