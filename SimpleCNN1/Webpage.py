@@ -27,7 +27,7 @@ class_names = ['smelly', 'not_smelly']
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SimpleCNN(num_classes=2, img_height=224, img_width=224)
-model.load_state_dict(torch.load("SimpleCNN1_T3.pth", map_location=device, weights_only=True))
+model.load_state_dict(torch.load("SimpleCNN1_T4.pth", map_location=device, weights_only=True))
 model.to(device)
 model.eval()
 
@@ -131,4 +131,4 @@ def predict():
 
 if __name__ == '__main__':
     os.makedirs('uploads', exist_ok=True)
-    app.run(debug=True, host='0.0.0.0', port=8082)
+    app.run(debug=True, host='0.0.0.0', port=8083)

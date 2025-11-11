@@ -26,9 +26,16 @@ class SimpleCNN(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
         )
+        self.crop = transforms.CenterCrop((168, 168))
+        
+        # Dynamically calculate the input size for the classifier
+        dummy_input = torch.zeros(1, 3, img_height, img_width)
+        dummy_output = self.features(dummy_input)
+        flattened_size = dummy_output.view(1, -1).size(1)
+
         self.classifier = nn.Sequential(
             nn.Dropout(),
-            nn.Linear(128 * (img_height // 8) * (img_width // 8), 512),
+            nn.Linear(flattened_size, 512),
             nn.ReLU(inplace=True),
             nn.Dropout(),
             nn.Linear(512, num_classes),
