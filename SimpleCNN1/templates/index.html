@@ -116,12 +116,12 @@
                 img.style.marginLeft = '10px'; // Add spacing
                 resultDiv.appendChild(img);
 
-                resultDiv.innerHTML += `<p><strong>Vote Results:</strong></p>`;
-                resultDiv.innerHTML += `<ul>`;
-                for (const [key, value] of Object.entries(data.vote_counts)) {
-                    resultDiv.innerHTML += `<li>${key}: ${value} votes</li>`;
-                }
-                resultDiv.innerHTML += `</ul>`;
+                // resultDiv.innerHTML += `<p><strong>Vote Results:</strong></p>`;
+                // resultDiv.innerHTML += `<ul>`;
+                // for (const [key, value] of Object.entries(data.vote_counts)) {
+                //     resultDiv.innerHTML += `<li>${key}: ${value} votes</li>`;
+                // }
+                // resultDiv.innerHTML += `</ul>`;
             } catch (error) {
                 alert('An error occurred while processing the file.');
                 console.error(error);

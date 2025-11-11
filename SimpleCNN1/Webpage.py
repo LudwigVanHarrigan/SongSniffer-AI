@@ -27,7 +27,7 @@ class_names = ['smelly', 'not_smelly']
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SimpleCNN(num_classes=2, img_height=224, img_width=224)
-model.load_state_dict(torch.load("SimpleCNN1_T2.pth", map_location=device, weights_only=True))
+model.load_state_dict(torch.load("SimpleCNN1_T3.pth", map_location=device, weights_only=True))
 model.to(device)
 model.eval()
 
