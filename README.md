@@ -14,8 +14,9 @@ This was developed by Kevin Cotellesso, Alex Stedman, Reese Sieger, and Jacob Ri
 - `extract_mel_spectrograms.py` - Generates mel-spectrograms from audio files
 
 ### **Datasets** (`Datasets/`)
-Contains various dataset versions and source data:
-- `SmellySongs9k/` - 9,000 sample dataset with proper train/test split, balancing and greyscale spectrograms.
+**ON RHIT CSSE SERVERS ONLY** Contains various dataset versions and source data:
+- `SmellySongs9k_V2/` - Same as SS9k but all files are at 44100hz sample rate
+- `SmellySongs9k/` - DEPRECATED - 9,000 sample dataset with proper train/test split, balancing and greyscale spectrograms.
 - `SmellySongs23K/` - DEPRECATED - 23,000 sample dataset with grayscale spectrograms.
 - `SmellySongs772/` - DEPRECATED - Smaller 772 sample dataset (not split into 5s chunks or spectrograms)
 - `Source_Datasets/` - Raw source datasets used to generate our AI vs Human datasets
@@ -33,7 +34,7 @@ Contains various dataset versions and source data:
 - `classifier/` - Basic classifier implementations
 
 
-## 📊 SmellySongs9k Structure
+## 👃SmellySongs9k Structure
 
 The processed SmellySongs9k dataset follows this structure:
 ```
@@ -45,3 +46,10 @@ dataset/
     ├── AI/
     └── Human/
 ```
+
+## 📊 SimpleCNN1 Versions
+- T1: The original training. 20 epochs on SmellySongs9k
+- T2: A lighter training on SmellySongs9k
+- T3: 20 (?) epochs on SmellySongs9k_V2. No longer sensitive to sampling rate.
+- T4: A center-cropped model trained 3 epochs on SmellySongs9k. (BEST)
+- T5: 
